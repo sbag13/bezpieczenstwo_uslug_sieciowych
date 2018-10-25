@@ -1,0 +1,8 @@
+[package]
+name = "server"
+version = "0.1.0"
+authors = ["sbaginsk <szymon.baginski@gmail.com>"]
+
+[dependencies]
+mio = "0.5"
+json = "0.11"
