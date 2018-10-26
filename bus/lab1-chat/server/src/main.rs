@@ -1,7 +1,11 @@
-extern crate bytes;
 extern crate base64;
-extern crate json;
+extern crate bytes;
 extern crate mio;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+#[macro_use]
+extern crate json;
 
 use bytes::ByteBuf;
 use mio::tcp::{TcpListener, TcpStream};
@@ -14,7 +18,7 @@ const ADDRESS: &'static str = "127.0.0.1:12345";
 const SERVER_TOKEN: Token = Token(0);
 
 fn main() {
-    // TODO logi
+    env_logger::init();
 
     let mut event_loop = EventLoop::new().unwrap();
 
@@ -34,9 +38,14 @@ fn main() {
             PollOpt::edge(),
         ).unwrap();
 
+    info!(
+        "Listening for incomming connections on: {:?}",
+        address.port()
+    );
+
     match event_loop.run(&mut server) {
-        Ok(()) => println!("Event loop exited with success"),
-        Err(err) => println!("Err: {}", err),
+        Ok(()) => info!("Event loop exited with success"),
+        Err(err) => error!("Err: {}", err),
     }
 }
 
@@ -51,7 +60,7 @@ impl Handler for SocketServer {
     type Message = ();
 
     fn ready(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token, events: EventSet) {
-        println!("Events {:?} for token: {:?}", events, token);
+        debug!("Events {:?} for token: {:?}", events, token);
 
         if events.is_hup() {
             // TODO the same for errors
@@ -64,7 +73,7 @@ impl Handler for SocketServer {
 
 impl SocketServer {
     fn handle_hup(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token) {
-        println!("Deregister client with token: {:?}", token);
+        info!("Deregister client with token: {:?}", token);
         event_loop
             .deregister(&self.clients.get(&token).unwrap().socket)
             .unwrap();
@@ -84,42 +93,53 @@ impl SocketServer {
     }
 
     fn handle_new_connection(&mut self, event_loop: &mut EventLoop<SocketServer>) {
-        let client_socket = match self.socket.accept() {
+        let (client_socket, client_address) = match self.socket.accept() {
             Err(e) => {
-                println!("Accept error: {}", e);
+                error!("Accept error: {}", e);
                 return;
             }
             Ok(None) => unreachable!("Accept has returned 'None"),
-            Ok(Some((sock, addr))) => sock,
+            Ok(Some((sock, addr))) => {
+                info!("{}", format!("Connection accepted from {:?}", addr));
+                (sock, addr)
+            }
         };
 
         let new_token = Token(self.token_counter);
         self.token_counter += 1;
 
         self.clients
-            .insert(new_token, SocketClient::new(client_socket));
+            .insert(new_token, SocketClient::new(client_socket, client_address));
         event_loop
             .register(
                 &self.clients[&new_token].socket,
                 new_token,
-                EventSet::all(),
-                PollOpt::edge(), // TODO read about oneshot
+                EventSet::all(), //TODO dont take all
+                PollOpt::edge(),
             ).unwrap();
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum ClientState {
+    Connected,
+    ParamRequestReceived,
+}
+
 struct SocketClient {
     socket: TcpStream,
+    address: SocketAddr,
+    state: ClientState,
 }
 
 impl SocketClient {
     fn read(&mut self) {
         loop {
-            println!("Trying to read from socket {:?}", self.socket);
+            debug!("Trying to read from: {:?}", self.address);
             let mut mut_buf = ByteBuf::mut_with_capacity(2048);
             match self.socket.try_read_buf(&mut mut_buf) {
                 Err(e) => {
-                    println!("Error while reading socket: {:?}", e);
+                    error!("Error while reading socket: {:?}", e);
                     return;
                 }
                 Ok(None) =>
@@ -127,8 +147,8 @@ impl SocketClient {
                 {
                     break;
                 }
-                Ok(Some(length)) => {
-                    println!("data received from {:?}: \n{:?}", self.socket, mut_buf);
+                Ok(Some(_length)) => {
+                    debug!("data received: {:?}", mut_buf);
                     self.handle_data(&mut mut_buf.flip());
                     break;
                 }
@@ -137,15 +157,62 @@ impl SocketClient {
     }
 
     fn handle_data(&mut self, data: &mut ByteBuf) {
-        let mut string_buf = String::new();
-        data.read_to_string(&mut string_buf);
-        let bytes_decoded = base64::decode(&string_buf).unwrap();
-        println!("{:?}", bytes_decoded);
-        let string_decoded = String::from(std::str::from_utf8(&bytes_decoded).unwrap());
-        println!("string decoded: {:?}", string_decoded);
+        match self.state {
+            ClientState::Connected => self.handle_param_req(data),
+            ClientState::ParamRequestReceived => self.handle_incoming_number(data),
+        }
     }
 
-    fn new(socket: TcpStream) -> SocketClient {
-        SocketClient { socket: socket }
+    fn handle_incoming_number(&mut self, data: &mut ByteBuf) {
+        let decoded_string = decode_to_string(data);
     }
+
+    fn handle_param_req(&mut self, data: &mut ByteBuf) {
+        if validate_param_req(&decode_to_string(data)) {
+            info!("Param request received from: {:?}", self.address);
+            self.state = ClientState::ParamRequestReceived;
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn new(socket: TcpStream, addr: SocketAddr) -> SocketClient {
+        SocketClient {
+            socket: socket,
+            address: addr,
+            state: ClientState::Connected,
+        }
+    }
+}
+
+fn decode_to_string(data: &mut ByteBuf) -> String {
+    let mut string_buf = String::new();
+    data.read_to_string(&mut string_buf).unwrap();
+    debug!("base64 string: {:?}", string_buf);
+
+    let bytes_decoded = base64::decode(&string_buf).unwrap();
+    debug!("decoded raw bytes: {:?}", bytes_decoded);
+
+    let string_decoded = String::from(std::str::from_utf8(&bytes_decoded).unwrap());
+    debug!("string decoded: {:?}", string_decoded);
+
+    string_decoded
+}
+
+fn validate_param_req(decoded: &String) -> bool {
+    let param_req_json = object!{
+        "request" => "keys"
+    };
+    debug!("received param req json: {:?}", param_req_json);
+
+    let parsed_decoded = match json::parse(decoded) {
+        Ok(json) => json,
+        Err(err) => {
+            error!("{}", err);
+            return false;
+        }
+    };
+    debug!("received param req json: {:?}", parsed_decoded);
+
+    return param_req_json == parsed_decoded;
 }
