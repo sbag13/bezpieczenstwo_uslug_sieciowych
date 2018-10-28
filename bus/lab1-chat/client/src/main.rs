@@ -8,6 +8,7 @@ extern crate common;
 extern crate env_logger;
 
 mod client_socket;
+mod messages;
 
 use client_socket::ClientSocket;
 use mio::tcp::TcpStream;
@@ -23,14 +24,15 @@ fn main() {
 
     let address = ADDRESS.parse::<SocketAddr>().unwrap();
 
-    let mut client_socket = ClientSocket::new(TcpStream::connect(&address).unwrap());
+    let mut client_socket =
+        ClientSocket::new(TcpStream::connect(&address).unwrap(), event_loop.channel());
 
     event_loop
         .register(
             &client_socket.socket,
             Token(0),
-            EventSet::all(),    //TODO maybe not all
-            PollOpt::edge(),
+            EventSet::writable(),
+            PollOpt::edge() | PollOpt::oneshot(),
         ).unwrap();
 
     match event_loop.run(&mut client_socket) {
@@ -38,4 +40,3 @@ fn main() {
         Err(err) => error!("Err: {}", err),
     }
 }
-

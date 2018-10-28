@@ -1,16 +1,5 @@
-use common::send_json_to_socket;
+use common::{Message};
 use json;
-use mio::tcp::TcpStream;
-
-pub trait Message {
-    fn send(&self, socket: &mut TcpStream) {
-        let json = self.create_json();
-        send_json_to_socket(socket, json);
-        info!("Message sent"); //TODO result itd
-    }
-
-    fn create_json(&self) -> json::JsonValue;
-}
 
 #[derive(Debug)]
 pub struct SendParamsMessage {
@@ -24,6 +13,10 @@ impl Message for SendParamsMessage {
             "p" => self.p,
             "g" => self.g
         }
+    }
+
+    fn get_msg_name(&self) -> String {
+        return String::from(format!("SendParamMessage({},{})", self.p, self.g));
     }
 }
 

@@ -29,12 +29,8 @@ fn main() {
     let mut server = SocketServer::new(TcpListener::bind(&address).unwrap());
 
     event_loop
-        .register(
-            &server.socket,
-            Token(0),
-            EventSet::all(),
-            PollOpt::edge(),
-        ).unwrap();
+        .register(&server.socket, Token(0), EventSet::all(), PollOpt::edge())
+        .unwrap();
 
     info!(
         "Listening for incomming connections on: {:?}",
