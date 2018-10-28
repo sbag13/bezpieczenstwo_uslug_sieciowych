@@ -9,3 +9,4 @@ json = "0.11"
 base64 = "0.9"
 log = "0.4"
 env_logger = "0.5"
+common = { path = "../common" }
