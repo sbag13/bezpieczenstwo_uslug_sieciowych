@@ -68,7 +68,8 @@ impl NormalMessage {
 impl Message for NormalMessage {
     fn create_json(&self) -> json::JsonValue {
         object!{
-            &self.sender => self.content.clone(),
+            "msg" => self.content.clone(),
+            "from" => self.sender.clone(),
         }
     }
 

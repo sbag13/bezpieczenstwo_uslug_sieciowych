@@ -1,13 +1,17 @@
+use json;
 use mio::tcp::TcpListener;
 use mio::{EventLoop, EventSet, Handler, PollOpt, Token};
 use socket_client::SocketClient;
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
 
 const SERVER_TOKEN: Token = Token(0);
 
 pub struct SocketServer {
     pub socket: TcpListener,
     clients: HashMap<Token, SocketClient>,
+    messages_to_broadcast: Rc<RefCell<VecDeque<(Token, json::JsonValue)>>>,
     token_counter: usize,
 }
 
@@ -20,15 +24,27 @@ impl Handler for SocketServer {
         event_loop: &mut EventLoop<SocketServer>,
         (token, event_set): (Token, EventSet),
     ) {
-        debug!("notified from {:?}", token);
-        let client = self.clients.get_mut(&token).unwrap();
-        event_loop
-            .reregister(
-                &client.socket,
-                client.token,
-                event_set,
-                PollOpt::edge() | PollOpt::oneshot(),
-            ).unwrap();
+        debug!("notified for {:?}", token);
+
+        if token == SERVER_TOKEN {
+            while let Some(message) = self.messages_to_broadcast.borrow_mut().pop_front() {
+                for item in self.clients.iter_mut() {
+                    if *item.0 != message.0 {
+                        item.1.push_normal_message_json(message.1.clone());
+                        item.1.reregister(EventSet::writable());
+                    }
+                }
+            }
+        } else {
+            let client = self.clients.get_mut(&token).unwrap();
+            event_loop
+                .reregister(
+                    &client.socket,
+                    client.token,
+                    event_set,
+                    PollOpt::edge() | PollOpt::oneshot(),
+                ).unwrap();
+        }
     }
 
     fn ready(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token, events: EventSet) {
@@ -64,6 +80,7 @@ impl SocketServer {
             socket: socket,
             clients: HashMap::new(),
             token_counter: 1,
+            messages_to_broadcast: Rc::new(RefCell::new(VecDeque::new())),
         }
     }
 
@@ -98,6 +115,7 @@ impl SocketServer {
                 client_socket,
                 client_address,
                 event_loop.channel(),
+                self.messages_to_broadcast.clone(),
             ),
         );
         event_loop

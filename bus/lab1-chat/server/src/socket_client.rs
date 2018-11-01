@@ -1,13 +1,16 @@
 use common::{
-    generate_public_number, read_json_from_socket, ClientState, Message, SendPublicNumberMessage,
+    generate_public_number, read_json_from_socket, ClientState, Message, NormalMessage,
+    SendPublicNumberMessage,
 };
 use json;
 use messages::SendParamsMessage;
 use mio::tcp::TcpStream;
 use mio::{EventLoop, EventSet, Sender, Token};
 use socket_server::SocketServer;
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
+use std::rc::Rc;
 
 pub struct SocketClient {
     pub token: Token,
@@ -16,6 +19,7 @@ pub struct SocketClient {
     state: ClientState,
     messages_to_send: VecDeque<Box<Message>>,
     event_loop_notifier: Sender<(Token, EventSet)>,
+    messages_to_broadcast: Rc<RefCell<VecDeque<(Token, json::JsonValue)>>>,
 }
 
 impl SocketClient {
@@ -24,6 +28,7 @@ impl SocketClient {
         socket: TcpStream,
         addr: SocketAddr,
         event_loop_notifier: Sender<(Token, EventSet)>,
+        messages_to_broadcast: Rc<RefCell<VecDeque<(Token, json::JsonValue)>>>,
     ) -> SocketClient {
         SocketClient {
             token: token,
@@ -32,28 +37,17 @@ impl SocketClient {
             state: ClientState::NotConnected,
             messages_to_send: VecDeque::new(),
             event_loop_notifier: event_loop_notifier,
+            messages_to_broadcast: messages_to_broadcast,
         }
     }
 
     pub fn handle_event(&mut self, _event_loop: &mut EventLoop<SocketServer>, events: EventSet) {
-
         if events.is_writable() && !self.messages_to_send.is_empty() {
             self.messages_to_send
                 .pop_front()
                 .unwrap()
                 .send(&mut self.socket)
-                .unwrap(); //TODO wrap
-                           // if self.messages_to_send.is_empty() {
-                           //     debug!("reregister token {:?} readable", self.token);
-                           //     self.event_loop_notifier
-                           //         .send((self.token, EventSet::readable()))
-                           //         .unwrap(); //TODO
-                           // } else {
-                           //     debug!("reregister token {:?} writable", self.token);
-                           //     self.event_loop_notifier
-                           //         .send((self.token, EventSet::writable()))
-                           //         .unwrap(); //TODO
-                           // }        //TODO when normal conversation
+                .unwrap();
 
             match self.state {
                 ClientState::ParamReqSent => {
@@ -72,6 +66,13 @@ impl SocketClient {
                     info!("Public number sent to client {:?}", self.token);
                     self.state = ClientState::NumbersExchanged;
                     self.reregister(EventSet::readable());
+                }
+                ClientState::Connected => {
+                    if self.messages_to_send.is_empty() {
+                        self.reregister(EventSet::readable());
+                    } else {
+                        self.reregister(EventSet::writable());
+                    }
                 }
                 _ => (),
             }
@@ -99,13 +100,23 @@ impl SocketClient {
                     self.read_encryption_or_msg().unwrap();
                     self.state = ClientState::Connected;
                     self.reregister(EventSet::readable());
-                },
+                }
                 ClientState::Connected => {
                     self.read_message().unwrap();
                     self.reregister(EventSet::readable());
-                },
+                }
             }
         }
+    }
+
+    pub fn push_normal_message_json(&mut self, json: json::JsonValue) {
+        let from: String = json["from"].to_string();
+        let msg: String = json["msg"].to_string();
+        info!(
+            "Enqueue message from {}: {} to client {:?}",
+            from, msg, self.token
+        );
+        self.messages_to_send.push_back(Box::new(NormalMessage::new(from.clone(), msg.clone())));
     }
 
     fn read_encryption_or_msg(&mut self) -> Result<(), String> {
@@ -133,14 +144,21 @@ impl SocketClient {
     }
 
     fn handle_encryption(&mut self, json: json::JsonValue) {
-        info!("received encryption method req from client: {:?}", self.token);
-        //TODO 
+        info!(
+            "received encryption method req from client: {:?}",
+            self.token
+        );
+        //TODO
     }
-    
+
     fn handle_msg(&mut self, json: json::JsonValue) {
         info!("received normal message from client: {:?}", self.token);
         debug!("{:?}", json);
-        //TODO
+        self.messages_to_broadcast
+            .borrow_mut()
+            .push_back((self.token, json));
+        self.event_loop_notifier
+            .send((Token(0), EventSet::writable()));
     }
 
     fn read_param_req(&mut self) -> Result<(), String> {
@@ -177,7 +195,7 @@ impl SocketClient {
         Ok(())
     }
 
-    fn reregister(&mut self, event_set: EventSet) {
+    pub fn reregister(&mut self, event_set: EventSet) {
         debug!("reregister token {:?} {:?}", self.token, event_set);
         self.event_loop_notifier
             .send((self.token, event_set))
@@ -204,9 +222,9 @@ fn validate_client_number(json: &json::JsonValue) -> bool {
 }
 
 fn is_valid_encryption_method(json: &json::JsonValue) -> bool {
-    true    //TODO
+    true //TODO
 }
 
 fn is_valid_msg(json: &json::JsonValue) -> bool {
-    false   //TODO
+    true //TODO
 }

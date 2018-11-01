@@ -5,18 +5,22 @@ use common::{
 use messages::{SendEncryptionMethodMessage, SendParamReqMessage};
 use mio::tcp::TcpStream;
 use mio::{EventLoop, EventSet, Handler, PollOpt, Sender, Token};
+use std::collections::VecDeque;
+use json;
 
 pub struct ClientSocket {
     //TODO maybe move to common
     pub socket: TcpStream,
+    name: String,
     state: ClientState,
     token: Token,
-    event_loop_channel: Sender<EventSet>,
+    event_loop_channel: Sender<(EventSet, Option<String>)>,
+    messages_to_send: VecDeque<String>, 
 }
 
 impl Handler for ClientSocket {
     type Timeout = usize;
-    type Message = EventSet;
+    type Message = (EventSet, Option<String>);
     // TODO err, conn refused
     fn ready(
         &mut self,
@@ -52,24 +56,29 @@ impl Handler for ClientSocket {
                 if events.is_writable() {
                     self.send_encryption_method().unwrap();
                 }
-
-                //for testing
-                // use std::time::Duration;
-                // use std::thread;
-                // thread::sleep(Duration::from_millis(400));
-                // self.event_loop_channel.send(EventSet::writable()).unwrap();
             }
             ClientState::Connected => {
-                if events.is_writable() {
-
-                    //test
-                    // NormalMessage::new(String::from("test sender"), String::from("test message")).send(&mut self.socket).unwrap();
+                if events.is_writable() && !self.messages_to_send.is_empty() {
+                    let msg = self.messages_to_send.pop_front().unwrap();
+                    debug!("Sending msg: {:?}", msg);
+                    NormalMessage::new(self.name.clone(), msg).send(&mut self.socket).unwrap();
+                    self.event_loop_channel.send((EventSet::readable(), None)).unwrap();
+                } else if events.is_readable() {
+                    self.read_message();
                 }
             }
         }
     }
 
-    fn notify(&mut self, event_loop: &mut EventLoop<ClientSocket>, events: EventSet) {
+    fn notify(
+        &mut self,
+        event_loop: &mut EventLoop<ClientSocket>,
+        (events, msg_opt): (EventSet, Option<String>),
+    ) {
+        if msg_opt.is_some() {
+            self.messages_to_send.push_back(msg_opt.unwrap());
+        }
+
         debug!("notified with events: {:?}", events);
         event_loop
             .reregister(
@@ -82,12 +91,14 @@ impl Handler for ClientSocket {
 }
 
 impl ClientSocket {
-    pub fn new(socket: TcpStream, event_loop_channel: Sender<EventSet>) -> ClientSocket {
+    pub fn new(socket: TcpStream, event_loop_channel: Sender<(EventSet, Option<String>)>) -> ClientSocket {
         ClientSocket {
             socket: socket,
             state: ClientState::NotConnected,
             token: Token(0),
             event_loop_channel: event_loop_channel,
+            messages_to_send: VecDeque::new(),
+            name: String::from("tmpname"),  //TODO
         }
     }
 
@@ -96,7 +107,9 @@ impl ClientSocket {
         try!(SendEncryptionMethodMessage::new(EncryptionMethod::None).send(&mut self.socket));
 
         self.state = ClientState::Connected;
-        self.event_loop_channel.send(EventSet::readable()).unwrap();
+        self.event_loop_channel
+            .send((EventSet::readable(), None))
+            .unwrap();
 
         Ok(())
     }
@@ -109,20 +122,43 @@ impl ClientSocket {
 
         if self.state == ClientState::ParamsReceived {
             self.state = ClientState::ServerNumberSent;
-            self.event_loop_channel.send(EventSet::writable()).unwrap();
+            self.event_loop_channel
+                .send((EventSet::writable(), None))
+                .unwrap();
         } else if self.state == ClientState::ClientNumberSent {
             if self.is_encryption_set() {
                 self.state = ClientState::NumbersExchanged;
-                self.event_loop_channel.send(EventSet::writable()).unwrap();
+                self.event_loop_channel
+                    .send((EventSet::writable(), None))
+                    .unwrap();
             } else {
                 self.state = ClientState::Connected;
-                self.event_loop_channel.send(EventSet::readable()).unwrap();
+                self.event_loop_channel
+                    .send((EventSet::readable(), None))
+                    .unwrap();
             }
         }
 
         // TODO handle this number
 
         Ok(())
+    }
+
+    fn read_message(&mut self) -> Result<(), String> {
+        let json = try!(read_json_from_socket(&mut self.socket));
+        debug!("received json: {:?}", json.dump());
+
+        self.display_msg_json(json);
+
+        self.event_loop_channel
+            .send((EventSet::readable(), None))
+            .unwrap();
+
+        Ok(())
+    }
+
+    fn display_msg_json(&mut self, json: json::JsonValue) {
+        println!("{} >>> {}", json["from"].to_string(), json["msg"].to_string());
     }
 
     fn is_encryption_set(&self) -> bool {
@@ -134,7 +170,9 @@ impl ClientSocket {
         try!(SendParamReqMessage.send(&mut self.socket));
 
         self.state = ClientState::ParamReqSent;
-        self.event_loop_channel.send(EventSet::readable()).unwrap(); // TODO wrap or try
+        self.event_loop_channel
+            .send((EventSet::readable(), None))
+            .unwrap(); // TODO wrap or try
 
         Ok(())
     }
@@ -144,7 +182,7 @@ impl ClientSocket {
         debug!("received json: {:?}", json.dump());
         self.state = ClientState::ParamsReceived;
         self.event_loop_channel
-            .send(EventSet::writable() | EventSet::readable())
+            .send((EventSet::writable() | EventSet::readable(), None))
             .unwrap();
         info!("Received params from server");
         Ok(())
@@ -156,14 +194,20 @@ impl ClientSocket {
         try!(SendPublicNumberMessage::new("a", client_public_number).send(&mut self.socket));
         if self.state == ClientState::ParamsReceived {
             self.state = ClientState::ClientNumberSent;
-            self.event_loop_channel.send(EventSet::readable()).unwrap();
+            self.event_loop_channel
+                .send((EventSet::readable(), None))
+                .unwrap();
         } else if self.state == ClientState::ServerNumberSent {
             if self.is_encryption_set() {
                 self.state = ClientState::NumbersExchanged;
-                self.event_loop_channel.send(EventSet::writable()).unwrap();
+                self.event_loop_channel
+                    .send((EventSet::writable(), None))
+                    .unwrap();
             } else {
                 self.state = ClientState::Connected;
-                self.event_loop_channel.send(EventSet::readable()).unwrap();
+                self.event_loop_channel
+                    .send((EventSet::readable(), None))
+                    .unwrap();
             }
         }
 
