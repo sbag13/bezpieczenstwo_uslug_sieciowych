@@ -24,25 +24,64 @@ pub trait Message {
 
 #[derive(Debug)]
 pub struct SendPublicNumberMessage {
-    a: u32,
+    key: String,
+    val: u32,
 }
 
 impl Message for SendPublicNumberMessage {
     fn create_json(&self) -> json::JsonValue {
         object!{
-            "a" => self.a,
+            &self.key => self.val,
         }
     }
 
     fn get_msg_name(&self) -> String {
-        return String::from(format!("SendPublicNumberMessage ({})", self.a));
+        return String::from(format!(
+            "SendPublicNumberMessage ({}:{})",
+            self.key, self.val
+        ));
     }
 }
 
 impl SendPublicNumberMessage {
-    pub fn new(a: u32) -> SendPublicNumberMessage {
-        SendPublicNumberMessage { a: a }
+    pub fn new(key: &str, val: u32) -> SendPublicNumberMessage {
+        SendPublicNumberMessage {
+            key: String::from(key),
+            val: val,
+        }
     }
+}
+
+
+#[derive(Debug)]
+pub struct NormalMessage {
+    content: String,
+    sender: String,
+}
+
+impl NormalMessage {
+    pub fn new(sender: String, content: String) -> NormalMessage {
+        NormalMessage { content: content, sender: sender }
+    }
+}
+
+impl Message for NormalMessage {
+    fn create_json(&self) -> json::JsonValue {
+        object!{
+            &self.sender => self.content.clone(),
+        }
+    }
+
+    fn get_msg_name(&self) -> String {
+        return String::from("NormalMessage");
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum EncryptionMethod {
+    None,
+    Xor,
+    Cezar,
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,11 +89,15 @@ pub enum ClientState {
     NotConnected,
     ParamReqSent,
     ParamsReceived,
+    ClientNumberSent,
+    ServerNumberSent,
+    NumbersExchanged,
+    Connected,
 }
 
 pub fn send_json_to_socket(socket: &mut TcpStream, json: json::JsonValue) -> Result<(), String> {
     let json_string = json.dump();
-    debug!("param json string: {:?}", json_string);
+    debug!("sending json string: {:?}", json_string);
     let string_base64 = base64::encode(json.dump().as_bytes());
     debug!("string in base64: {:?}", string_base64);
     match socket.try_write(string_base64.as_bytes()) {

@@ -13,37 +13,45 @@ pub struct SocketServer {
 
 impl Handler for SocketServer {
     type Timeout = usize;
-    type Message = Token;
+    type Message = (Token, EventSet);
 
-    fn notify(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token) {
+    fn notify(
+        &mut self,
+        event_loop: &mut EventLoop<SocketServer>,
+        (token, event_set): (Token, EventSet),
+    ) {
         debug!("notified from {:?}", token);
         let client = self.clients.get_mut(&token).unwrap();
-        SocketServer::reregister_writable(client, event_loop);
+        event_loop
+            .reregister(
+                &client.socket,
+                client.token,
+                event_set,
+                PollOpt::edge() | PollOpt::oneshot(),
+            ).unwrap();
     }
 
     fn ready(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token, events: EventSet) {
-        debug!("Events {:?} for token: {:?}", events, token);
-
         match token {
             SERVER_TOKEN => {
-                // TODO the same for errors
-                if events.is_hup() {
-                    self.handle_hup(event_loop, token);
+                debug!("Events {:?} for token server socket", events);
+                if events.is_hup() || events.is_error() {
+                    //TODO server socket error
+                    unimplemented!()
                 } else if events.is_readable() {
                     self.handle_new_connection(event_loop);
                 }
             }
             token => {
-                let client = self.clients.get_mut(&token).unwrap();
-                if events.is_readable() {
-                    client.read();
-                } else if events.is_writable() {
-                    client.write();
-                    if client.has_messages_to_sent() {
-                        SocketServer::reregister_writable(&client, event_loop);
-                    } else {
-                        SocketServer::reregister_readable(&client, event_loop);
-                    }
+                if events.is_hup() || events.is_error() {
+                    self.handle_client_err(event_loop, token);
+                } else {
+                    debug!(
+                        "Events {:?} for token client socket with token: {:?}",
+                        events, token
+                    );
+                    let client = self.clients.get_mut(&token).unwrap();
+                    client.handle_event(event_loop, events);
                 }
             }
         }
@@ -59,27 +67,7 @@ impl SocketServer {
         }
     }
 
-    fn reregister_writable(client: &SocketClient, event_loop: &mut EventLoop<SocketServer>) {
-        event_loop
-            .reregister(
-                &client.socket,
-                client.token,
-                EventSet::writable(),
-                PollOpt::edge() | PollOpt::oneshot(),
-            ).unwrap();
-    }
-
-    fn reregister_readable(client: &SocketClient, event_loop: &mut EventLoop<SocketServer>) {
-        event_loop
-            .reregister(
-                &client.socket,
-                client.token,
-                EventSet::readable(),
-                PollOpt::edge() | PollOpt::oneshot(),
-            ).unwrap();
-    }
-
-    fn handle_hup(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token) {
+    fn handle_client_err(&mut self, event_loop: &mut EventLoop<SocketServer>, token: Token) {
         info!("Deregister client with token: {:?}", token);
         event_loop
             .deregister(&self.clients.get(&token).unwrap().socket)

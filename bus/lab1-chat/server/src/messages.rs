@@ -1,4 +1,4 @@
-use common::{Message};
+use common::Message;
 use json;
 
 #[derive(Debug)]
