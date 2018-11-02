@@ -116,7 +116,8 @@ impl SocketClient {
             "Enqueue message from {}: {} to client {:?}",
             from, msg, self.token
         );
-        self.messages_to_send.push_back(Box::new(NormalMessage::new(from.clone(), msg.clone())));
+        self.messages_to_send
+            .push_back(Box::new(NormalMessage::new(from.clone(), msg.clone())));
     }
 
     fn read_encryption_or_msg(&mut self) -> Result<(), String> {
@@ -158,7 +159,8 @@ impl SocketClient {
             .borrow_mut()
             .push_back((self.token, json));
         self.event_loop_notifier
-            .send((Token(0), EventSet::writable()));
+            .send((Token(0), EventSet::writable()))
+            .unwrap();
     }
 
     fn read_param_req(&mut self) -> Result<(), String> {
@@ -204,7 +206,7 @@ impl SocketClient {
 }
 
 fn generate_parameters() -> (u32, u32) {
-    (5, 13) //TODO generate parameters
+    (3,3)
 }
 
 fn validate_param_req(json: &json::JsonValue) -> bool {
@@ -227,4 +229,11 @@ fn is_valid_encryption_method(json: &json::JsonValue) -> bool {
 
 fn is_valid_msg(json: &json::JsonValue) -> bool {
     true //TODO
+}
+
+
+
+#[test]
+fn generate_parameters_test() {
+    println!("{:?}", generate_parameters());
 }

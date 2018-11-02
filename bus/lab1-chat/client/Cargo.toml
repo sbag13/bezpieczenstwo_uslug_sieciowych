@@ -11,3 +11,4 @@ log = "0.4"
 env_logger = "0.5"
 common = { path = "../common" }
 console = "0.6"
+clap = "2.32"

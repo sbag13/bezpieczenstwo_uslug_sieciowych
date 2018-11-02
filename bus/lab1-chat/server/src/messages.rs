@@ -25,13 +25,3 @@ impl SendParamsMessage {
         SendParamsMessage { p: p, g: g }
     }
 }
-
-// #[derive(Debug)]
-// struct SendPublicNumber {
-//     b: u32,
-// }
-
-// #[derive(Debug)]
-// struct SendRegularMessage {
-//     msg: String,
-// }
