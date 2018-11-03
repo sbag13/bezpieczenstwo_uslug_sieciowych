@@ -5,7 +5,10 @@ extern crate log;
 extern crate bytes;
 #[macro_use]
 extern crate json;
+extern crate byteorder;
+extern crate rand;
 
+use byteorder::{BigEndian, WriteBytesExt};
 use bytes::ByteBuf;
 use mio::tcp::TcpStream;
 use mio::{TryRead, TryWrite};
@@ -52,7 +55,6 @@ impl SendPublicNumberMessage {
     }
 }
 
-
 #[derive(Debug)]
 pub struct NormalMessage {
     content: String,
@@ -61,7 +63,10 @@ pub struct NormalMessage {
 
 impl NormalMessage {
     pub fn new(sender: String, content: String) -> NormalMessage {
-        NormalMessage { content: content, sender: sender }
+        NormalMessage {
+            content: content,
+            sender: sender,
+        }
     }
 }
 
@@ -78,7 +83,55 @@ impl Message for NormalMessage {
     }
 }
 
-#[derive(Debug, PartialEq)]
+pub fn encrypt(msg: &String, method: &EncryptionMethod, secret: &u32) -> String {
+    match method {
+        EncryptionMethod::Cezar => return encrypt_cezar(msg, secret),
+        EncryptionMethod::Xor => return crypt_xor(msg, secret),
+        _ => msg.clone(),
+    }
+}
+
+pub fn decrypt(msg: &String, method: &EncryptionMethod, secret: &u32) -> String {
+    match method {
+        EncryptionMethod::Cezar => return decrypt_cezar(msg, secret),
+        EncryptionMethod::Xor => return crypt_xor(msg, secret),
+        _ => msg.clone(),
+    }
+}
+
+fn crypt_xor(msg: &String, secret: &u32) -> String {
+    let mut secret_bytes = vec![];
+    secret_bytes.write_u32::<BigEndian>(*secret).unwrap();
+    let encrypted_msg_bytes: Vec<u8> = msg
+        .as_bytes()
+        .iter()
+        .map(|byte| byte ^ secret_bytes.iter().last().unwrap())
+        .collect();
+
+    String::from_utf8(encrypted_msg_bytes).unwrap()
+}
+
+fn encrypt_cezar(msg: &String, secret: &u32) -> String {
+    let encrypted_msg_bytes: Vec<u8> = msg
+        .as_bytes()
+        .iter()
+        .map(|byte| byte.wrapping_add(*secret as u8) % 128)
+        .collect();
+
+    String::from_utf8(encrypted_msg_bytes).unwrap()
+}
+
+fn decrypt_cezar(msg: &String, secret: &u32) -> String {
+    let encrypted_msg_bytes: Vec<u8> = msg
+        .as_bytes()
+        .iter()
+        .map(|byte| byte.wrapping_sub(*secret as u8) % 128)
+        .collect();
+
+    String::from_utf8(encrypted_msg_bytes).unwrap()
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum EncryptionMethod {
     None,
     Xor,
@@ -107,8 +160,23 @@ pub fn send_json_to_socket(socket: &mut TcpStream, json: json::JsonValue) -> Res
     }
 }
 
-pub fn generate_public_number() -> u32 {
-    return 5; //TODO
+pub fn generate_private_number() -> u32 {
+    (rand::random::<f32>() * 20.0) as u32 + 2
+}
+
+pub fn generate_public_number(p: u32, g: u32, a: u32) -> u32 {
+    debug!("g: {}, a: {}", g, a);
+    let g_tmp = g as u128;
+    (g_tmp.pow(a) % p as u128) as u32
+}
+
+pub fn find_secret(public: u32, private: u32, p: u32) -> u32 {
+    debug!(
+        "finding secret, public {}, private {}, p {}",
+        public, private, p
+    );
+    let public_u128 = public as u128;
+    (public_u128.pow(private) % p as u128) as u32
 }
 
 pub fn decode_to_string(data: &mut ByteBuf) -> String {
@@ -117,7 +185,7 @@ pub fn decode_to_string(data: &mut ByteBuf) -> String {
     debug!("base64 string: {:?}", string_buf);
 
     let bytes_decoded = base64::decode(&string_buf).unwrap();
-    debug!("decoded raw bytes: {:?}", bytes_decoded); //TODO maybe wrap it
+    debug!("decoded raw bytes: {:?}", bytes_decoded);
 
     let string_decoded = String::from(std::str::from_utf8(&bytes_decoded).unwrap());
     debug!("string decoded: {:?}", string_decoded);

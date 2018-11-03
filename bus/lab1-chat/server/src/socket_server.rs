@@ -31,7 +31,8 @@ impl Handler for SocketServer {
                 for item in self.clients.iter_mut() {
                     if *item.0 != message.0 {
                         item.1.push_normal_message_json(message.1.clone());
-                        item.1.reregister(EventSet::writable());
+                        item.1
+                            .reregister(EventSet::writable() | EventSet::hup() | EventSet::error());
                     }
                 }
             }
@@ -41,7 +42,7 @@ impl Handler for SocketServer {
                 .reregister(
                     &client.socket,
                     client.token,
-                    event_set,
+                    event_set | EventSet::hup() | EventSet::error(),
                     PollOpt::edge() | PollOpt::oneshot(),
                 ).unwrap();
         }
@@ -52,7 +53,6 @@ impl Handler for SocketServer {
             SERVER_TOKEN => {
                 debug!("Events {:?} for token server socket", events);
                 if events.is_hup() || events.is_error() {
-                    //TODO server socket error
                     unimplemented!()
                 } else if events.is_readable() {
                     self.handle_new_connection(event_loop);

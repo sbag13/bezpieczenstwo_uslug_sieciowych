@@ -14,6 +14,7 @@ mod client_socket;
 mod messages;
 
 use client_socket::ClientSocket;
+use common::EncryptionMethod;
 use console::Term;
 use mio::tcp::TcpStream;
 use mio::{EventLoop, EventSet, PollOpt, Token};
@@ -29,12 +30,26 @@ fn main() {
     let args = cli_args::get_args();
     let nickname = String::from(args.value_of("nickname").unwrap_or("anonymous"));
 
+    let encryption = match args.value_of("encryption") {
+        Some("XOR") => EncryptionMethod::Xor,
+        Some("CEZAR") => EncryptionMethod::Cezar,
+        Some("NONE") => EncryptionMethod::None,
+        Some(_) => {
+            println!("Unrecognized encryption method. set to none");
+            EncryptionMethod::None
+        }
+        None => EncryptionMethod::None,
+    };
+
     let mut event_loop = EventLoop::new().unwrap();
+
     let address = ADDRESS.parse::<SocketAddr>().unwrap();
+
     let mut client_socket = ClientSocket::new(
         TcpStream::connect(&address).unwrap(),
         event_loop.channel(),
         nickname.clone(),
+        encryption,
     );
 
     event_loop
@@ -77,8 +92,3 @@ fn get_line(term: &Term, nickname: &String) -> Result<String, std::io::Error> {
     try!(term.write_line(&format!("{} <<< {}", nickname, msg)));
     Ok(msg)
 }
-
-// TODO get rid off unwraps
-// TODO name from args
-// TODO encryption type from args
-// TODO encryption optional

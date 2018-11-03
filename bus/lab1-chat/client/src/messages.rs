@@ -16,7 +16,7 @@ impl Message for SendParamReqMessage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SendEncryptionMethodMessage {
     method: EncryptionMethod,
 }

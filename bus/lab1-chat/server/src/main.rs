@@ -7,8 +7,11 @@ extern crate env_logger;
 #[macro_use]
 extern crate json;
 extern crate common;
+extern crate primes;
+extern crate rand;
 
 mod messages;
+mod parameters;
 mod socket_client;
 mod socket_server;
 

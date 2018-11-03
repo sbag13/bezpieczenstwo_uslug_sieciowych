@@ -11,5 +11,12 @@ pub fn get_args() -> ArgMatches<'static> {
                 .value_name("NICKNAME")
                 .help("Sets your nickname.")
                 .takes_value(true),
+        ).arg(
+            Arg::with_name("encryption")
+                .short("e")
+                .long("encryption")
+                .value_name("NONE|XOR|CEZAR")
+                .help("Sets encryption method.")
+                .takes_value(true),
         ).get_matches()
 }
