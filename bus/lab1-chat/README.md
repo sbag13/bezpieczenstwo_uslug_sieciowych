@@ -40,6 +40,11 @@ cargo run -- -nickname John
 
 After building programs can be run directly from binary which can be found in **target** folder.
 
+Above commands can be preceded with flags which turns on printing logs:
+- RUST_LOG=debug
+- RUST_LOG=info
+- RUST_LOG=error
+
 ### Options
 
 Client module can be run with options.
