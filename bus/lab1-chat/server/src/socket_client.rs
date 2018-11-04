@@ -1,3 +1,4 @@
+use base64;
 use common::{
     decrypt, encrypt, find_secret, generate_private_number, generate_public_number,
     read_json_from_socket, ClientState, EncryptionMethod, Message, NormalMessage,
@@ -57,14 +58,11 @@ impl SocketClient {
 
     pub fn handle_event(&mut self, _event_loop: &mut EventLoop<SocketServer>, events: EventSet) {
         if events.is_writable() && !self.messages_to_send.is_empty() {
-            println!("### 1");
             self.messages_to_send
                 .pop_front()
                 .unwrap()
                 .send(&mut self.socket)
                 .unwrap();
-            println!("### 2");
-            println!("{:?}", self.state);
             match self.state {
                 ClientState::ParamReqSent => {
                     info!("Params sent to client {:?}", self.token);
@@ -80,15 +78,16 @@ impl SocketClient {
                 ClientState::ServerNumberSent => unreachable!(),
                 ClientState::ClientNumberSent => {
                     info!("Public number sent to client {:?}", self.token);
-                    self.state = ClientState::NumbersExchanged;
+                    self.secret = find_secret(self.public, self.private, self.p);
+                    debug!("secret is: {}", self.secret);
+                    info!("secret established");
+                    self.state = ClientState::Connected;
                     self.reregister(EventSet::readable());
                 }
                 ClientState::Connected => {
                     if self.messages_to_send.is_empty() {
-                        println!("### 3");
                         self.reregister(EventSet::readable());
                     } else {
-                        println!("### 4");
                         self.reregister(EventSet::writable());
                     }
                 }
@@ -111,14 +110,9 @@ impl SocketClient {
                 ClientState::ClientNumberSent => unreachable!(),
                 ClientState::ServerNumberSent => {
                     self.read_public().unwrap();
-                    self.state = ClientState::NumbersExchanged;
-                    self.reregister(EventSet::readable());
-                }
-                ClientState::NumbersExchanged => {
                     self.secret = find_secret(self.public, self.private, self.p);
                     debug!("secret is: {}", self.secret);
                     info!("secret established");
-                    self.read_encryption_or_msg().unwrap();
                     self.state = ClientState::Connected;
                     self.reregister(EventSet::readable());
                 }
@@ -126,6 +120,7 @@ impl SocketClient {
                     self.read_message().unwrap();
                     self.reregister(EventSet::readable());
                 }
+                _ => (),
             }
         }
     }
@@ -133,43 +128,26 @@ impl SocketClient {
     pub fn push_normal_message_json(&mut self, json: json::JsonValue) {
         let from: String = json["from"].to_string();
         let msg: String = json["msg"].to_string();
-        let msg_encrypted: String;
 
-        if self.encryption != EncryptionMethod::None {
-            msg_encrypted = encrypt(&msg, &self.encryption, &self.secret);
-        } else {
-            msg_encrypted = msg.clone();
-        }
-        debug!("Encrypted message: {:?}", msg_encrypted);
+        let msg_bytes_encrypted = encrypt(&msg, &self.encryption, &self.secret);
+        debug!("Encrypted message bytes: {:?}", msg_bytes_encrypted);
+        let string_base64 = base64::encode(&msg_bytes_encrypted);
 
         info!(
             "Enqueue message from {}: {} to client {:?}",
             from, msg, self.token
         );
-        self.messages_to_send.push_back(Box::new(NormalMessage::new(
-            from.clone(),
-            msg_encrypted.clone(),
-        )));
-    }
-
-    fn read_encryption_or_msg(&mut self) -> Result<(), String> {
-        let json = try!(read_json_from_socket(&mut self.socket));
-        if is_valid_encryption_method(&json) {
-            debug!("valid encryption req");
-            self.handle_encryption(json);
-        } else if is_valid_msg(&json) {
-            debug!("valid msg");
-            self.handle_msg(json);
-        } else {
-            return Err(String::from("Incorrect encryption or message"));
-        }
-
-        Ok(())
+        self.messages_to_send
+            .push_back(Box::new(NormalMessage::new(from.clone(), string_base64)));
     }
 
     fn read_message(&mut self) -> Result<(), String> {
         let json = try!(read_json_from_socket(&mut self.socket));
-        if is_valid_msg(&json) {
+
+        if is_valid_encryption_method(&json) {
+            debug!("valid encryption req");
+            self.handle_encryption(json);
+        } else if is_valid_msg(&json) {
             debug!("valid msg");
             self.handle_msg(json);
         } else {
@@ -197,10 +175,12 @@ impl SocketClient {
         debug!("{:?}", json);
 
         let msg = json["msg"].to_string();
-        let decrypted_msg = decrypt(&msg, &self.encryption, &self.secret);
-        debug!("decrypted message: {:?}", decrypted_msg);
+        let decoded_msg_bytes = base64::decode(&msg).unwrap();
 
-        json["msg"] = decrypted_msg.into();
+        let decrypted_msg_string = decrypt(decoded_msg_bytes, &self.encryption, &self.secret);
+        debug!("decrypted message: {:?}", decrypted_msg_string);
+
+        json["msg"] = decrypted_msg_string.into();
         debug!("{:?}", json);
 
         self.messages_to_broadcast

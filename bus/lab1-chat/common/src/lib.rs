@@ -1,4 +1,3 @@
-extern crate base64;
 extern crate mio;
 #[macro_use]
 extern crate log;
@@ -87,23 +86,23 @@ impl Message for NormalMessage {
     }
 }
 
-pub fn encrypt(msg: &String, method: &EncryptionMethod, secret: &u32) -> String {
+pub fn encrypt(msg: &String, method: &EncryptionMethod, secret: &u32) -> Vec<u8> {
     match method {
         EncryptionMethod::Cezar => return encrypt_cezar(msg, secret),
-        EncryptionMethod::Xor => return crypt_xor(msg, secret),
-        _ => msg.clone(),
+        EncryptionMethod::Xor => return encrypt_xor(msg, secret),
+        _ => msg.clone().as_bytes().iter().cloned().collect(),
     }
 }
 
-pub fn decrypt(msg: &String, method: &EncryptionMethod, secret: &u32) -> String {
+pub fn decrypt(msg: Vec<u8>, method: &EncryptionMethod, secret: &u32) -> String {
     match method {
         EncryptionMethod::Cezar => return decrypt_cezar(msg, secret),
-        EncryptionMethod::Xor => return crypt_xor(msg, secret),
-        _ => msg.clone(),
+        EncryptionMethod::Xor => return decrypt_xor(msg, secret),
+        _ => String::from_utf8(msg).unwrap(),
     }
 }
 
-fn crypt_xor(msg: &String, secret: &u32) -> String {
+fn encrypt_xor(msg: &String, secret: &u32) -> Vec<u8> {
     let mut secret_bytes = vec![];
     secret_bytes.write_u32::<BigEndian>(*secret).unwrap();
     let encrypted_msg_bytes: Vec<u8> = msg
@@ -111,27 +110,33 @@ fn crypt_xor(msg: &String, secret: &u32) -> String {
         .iter()
         .map(|byte| byte ^ secret_bytes.iter().last().unwrap())
         .collect();
-
-    String::from_utf8(encrypted_msg_bytes).unwrap()
+    encrypted_msg_bytes
 }
 
-fn encrypt_cezar(msg: &String, secret: &u32) -> String {
+fn encrypt_cezar(msg: &String, secret: &u32) -> Vec<u8> {
     let encrypted_msg_bytes: Vec<u8> = msg
         .as_bytes()
         .iter()
-        .map(|byte| byte.wrapping_add(*secret as u8) % 128)
+        .map(|byte| byte.wrapping_add(*secret as u8))
         .collect();
-
-    String::from_utf8(encrypted_msg_bytes).unwrap()
+    encrypted_msg_bytes
 }
 
-fn decrypt_cezar(msg: &String, secret: &u32) -> String {
-    let encrypted_msg_bytes: Vec<u8> = msg
-        .as_bytes()
+fn decrypt_cezar(msg: Vec<u8>, secret: &u32) -> String {
+    let decrypted_msg_bytes: Vec<u8> = msg
         .iter()
-        .map(|byte| byte.wrapping_sub(*secret as u8) % 128)
+        .map(|byte| byte.wrapping_sub(*secret as u8))
         .collect();
+    String::from_utf8(decrypted_msg_bytes).unwrap()
+}
 
+fn decrypt_xor(msg: Vec<u8>, secret: &u32) -> String {
+    let mut secret_bytes = vec![];
+    secret_bytes.write_u32::<BigEndian>(*secret).unwrap();
+    let encrypted_msg_bytes: Vec<u8> = msg
+        .iter()
+        .map(|byte| byte ^ secret_bytes.iter().last().unwrap())
+        .collect();
     String::from_utf8(encrypted_msg_bytes).unwrap()
 }
 
@@ -153,17 +158,7 @@ pub enum ClientState {
     Connected,
 }
 
-pub fn send_json_to_socket(
-    socket: &mut TcpStream,
-    mut json: json::JsonValue,
-) -> Result<(), String> {
-    if !json["msg"].is_null() {
-        let msg = json["msg"].to_string();
-        let string_base64 = base64::encode(msg.as_bytes());
-        debug!("msg string in base64: {:?}", string_base64);
-        json["msg"] = string_base64.into();
-    }
-
+pub fn send_json_to_socket(socket: &mut TcpStream, json: json::JsonValue) -> Result<(), String> {
     let json_string = json.dump();
     debug!("sending json string: {:?}", json_string);
 
@@ -198,18 +193,6 @@ pub fn find_secret(public: u32, private: u32, p: u32) -> u32 {
         .modpow(&biguint(&private), &biguint(&p))
         .to_u32()
         .unwrap()
-}
-
-fn decode_msg(json: &mut json::JsonValue) {
-    let msg = json["msg"].to_string();
-
-    let bytes_decoded = base64::decode(&msg).unwrap();
-    debug!("decoded raw bytes: {:?}", bytes_decoded);
-
-    let string_decoded = String::from(std::str::from_utf8(&bytes_decoded).unwrap());
-    debug!("string decoded: {:?}", string_decoded);
-
-    json["msg"] = string_decoded.into();
 }
 
 pub fn get_data_from_socket(socket: &mut TcpStream) -> Result<Option<ByteBuf>, String> {
@@ -247,15 +230,10 @@ pub fn read_json_from_socket(socket: &mut TcpStream) -> Result<json::JsonValue, 
     data.read_to_string(&mut string_buf).unwrap();
     debug!("data before encoding msg: {:?}", string_buf);
 
-    let mut json = match json::parse(&string_buf) {
-        Ok(j) => j,
+    match json::parse(&string_buf) {
+        Ok(j) => return Ok(j),
         Err(_) => return Err(String::from("Could not parse data into jason")),
     };
-
-    if !json["msg"].is_null() {
-        decode_msg(&mut json);
-    }
-    Ok(json)
 }
 
 //
@@ -270,7 +248,7 @@ mod tests {
     #[test]
     fn encrypt_decrypt_xor_test() {
         let encrypted = encrypt(&String::from("msg"), &EncryptionMethod::Xor, &5);
-        let decrypted = decrypt(&encrypted, &EncryptionMethod::Xor, &5);
+        let decrypted = decrypt(encrypted, &EncryptionMethod::Xor, &5);
 
         assert_eq!("msg", decrypted);
     }
@@ -278,7 +256,7 @@ mod tests {
     #[test]
     fn encrypt_decrypt_cezar_test() {
         let encrypted = encrypt(&String::from("msg"), &EncryptionMethod::Cezar, &5);
-        let decrypted = decrypt(&encrypted, &EncryptionMethod::Cezar, &5);
+        let decrypted = decrypt(encrypted, &EncryptionMethod::Cezar, &5);
 
         assert_eq!("msg", decrypted);
     }

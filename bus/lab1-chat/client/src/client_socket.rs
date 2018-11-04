@@ -1,3 +1,4 @@
+use base64;
 use common::{
     decrypt, encrypt, find_secret, generate_private_number, generate_public_number,
     read_json_from_socket, ClientState, EncryptionMethod, Message, NormalMessage,
@@ -173,10 +174,10 @@ impl ClientSocket {
 
     fn send_msg(&mut self) -> Result<(), String> {
         let msg = self.messages_to_send.pop_front().unwrap();
-        let encrypted_msg = encrypt(&msg, &self.encryption, &self.secret);
-        debug!("Sending msg: {:?}", msg);
-        debug!("encrypted msg: {:?}", encrypted_msg);
-        try!(NormalMessage::new(self.name.clone(), encrypted_msg).send(&mut self.socket));
+        let encrypted_msg_bytes = encrypt(&msg, &self.encryption, &self.secret);
+        let string_base64 = base64::encode(&encrypted_msg_bytes);
+        debug!("Sending msg: {:?}", string_base64);
+        try!(NormalMessage::new(self.name.clone(), string_base64).send(&mut self.socket));
 
         Ok(())
     }
@@ -203,10 +204,12 @@ impl ClientSocket {
         debug!("received json: {:?}", json.dump());
 
         let msg = json["msg"].to_string();
-        let decrypted_msg = decrypt(&msg, &self.encryption, &self.secret);
-        debug!("decrypted message: {:?}", decrypted_msg);
+        let decoded_msg_bytes = base64::decode(&msg).unwrap();
 
-        json["msg"] = decrypted_msg.into();
+        let decrypted_msg_string = decrypt(decoded_msg_bytes, &self.encryption, &self.secret);
+        debug!("decrypted message: {:?}", decrypted_msg_string);
+
+        json["msg"] = decrypted_msg_string.into();
         debug!("{:?}", json);
 
         display_msg_json(json);
