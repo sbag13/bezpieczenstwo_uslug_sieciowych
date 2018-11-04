@@ -6,12 +6,16 @@ extern crate bytes;
 #[macro_use]
 extern crate json;
 extern crate byteorder;
+extern crate num_bigint;
+extern crate num_traits;
 extern crate rand;
 
 use byteorder::{BigEndian, WriteBytesExt};
 use bytes::ByteBuf;
 use mio::tcp::TcpStream;
 use mio::{TryRead, TryWrite};
+use num_bigint::{BigUint, ToBigUint};
+use num_traits::cast::ToPrimitive;
 use std::io::Read;
 
 pub trait Message {
@@ -149,25 +153,40 @@ pub enum ClientState {
     Connected,
 }
 
-pub fn send_json_to_socket(socket: &mut TcpStream, json: json::JsonValue) -> Result<(), String> {
+pub fn send_json_to_socket(
+    socket: &mut TcpStream,
+    mut json: json::JsonValue,
+) -> Result<(), String> {
+    if !json["msg"].is_null() {
+        let msg = json["msg"].to_string();
+        let string_base64 = base64::encode(msg.as_bytes());
+        debug!("msg string in base64: {:?}", string_base64);
+        json["msg"] = string_base64.into();
+    }
+
     let json_string = json.dump();
     debug!("sending json string: {:?}", json_string);
-    let string_base64 = base64::encode(json.dump().as_bytes());
-    debug!("string in base64: {:?}", string_base64);
-    match socket.try_write(string_base64.as_bytes()) {
+
+    match socket.try_write(json_string.as_bytes()) {
         Ok(_) => return Ok(()),
         Err(e) => return Err(e.to_string()),
     }
 }
 
 pub fn generate_private_number() -> u32 {
-    (rand::random::<f32>() * 20.0) as u32 + 2
+    rand::random()
+}
+
+pub fn biguint(uint: &u32) -> BigUint {
+    ToBigUint::to_biguint(uint).unwrap()
 }
 
 pub fn generate_public_number(p: u32, g: u32, a: u32) -> u32 {
     debug!("g: {}, a: {}", g, a);
-    let g_tmp = g as u128;
-    (g_tmp.pow(a) % p as u128) as u32
+    biguint(&g)
+        .modpow(&biguint(&a), &biguint(&p))
+        .to_u32()
+        .unwrap()
 }
 
 pub fn find_secret(public: u32, private: u32, p: u32) -> u32 {
@@ -175,22 +194,22 @@ pub fn find_secret(public: u32, private: u32, p: u32) -> u32 {
         "finding secret, public {}, private {}, p {}",
         public, private, p
     );
-    let public_u128 = public as u128;
-    (public_u128.pow(private) % p as u128) as u32
+    biguint(&public)
+        .modpow(&biguint(&private), &biguint(&p))
+        .to_u32()
+        .unwrap()
 }
 
-pub fn decode_to_string(data: &mut ByteBuf) -> String {
-    let mut string_buf = String::new();
-    data.read_to_string(&mut string_buf).unwrap();
-    debug!("base64 string: {:?}", string_buf);
+fn decode_msg(json: &mut json::JsonValue) {
+    let msg = json["msg"].to_string();
 
-    let bytes_decoded = base64::decode(&string_buf).unwrap();
+    let bytes_decoded = base64::decode(&msg).unwrap();
     debug!("decoded raw bytes: {:?}", bytes_decoded);
 
     let string_decoded = String::from(std::str::from_utf8(&bytes_decoded).unwrap());
     debug!("string decoded: {:?}", string_decoded);
 
-    string_decoded
+    json["msg"] = string_decoded.into();
 }
 
 pub fn get_data_from_socket(socket: &mut TcpStream) -> Result<Option<ByteBuf>, String> {
@@ -224,10 +243,43 @@ pub fn read_json_from_socket(socket: &mut TcpStream) -> Result<json::JsonValue, 
         Err(s) => return Err(s),
     };
 
-    let string_decoded = decode_to_string(&mut data);
+    let mut string_buf = String::new();
+    data.read_to_string(&mut string_buf).unwrap();
+    debug!("data before encoding msg: {:?}", string_buf);
 
-    match json::parse(&string_decoded) {
-        Ok(json) => return Ok(json),
+    let mut json = match json::parse(&string_buf) {
+        Ok(j) => j,
         Err(_) => return Err(String::from("Could not parse data into jason")),
+    };
+
+    if !json["msg"].is_null() {
+        decode_msg(&mut json);
+    }
+    Ok(json)
+}
+
+//
+//
+// TESTS
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encrypt_decrypt_xor_test() {
+        let encrypted = encrypt(&String::from("msg"), &EncryptionMethod::Xor, &5);
+        let decrypted = decrypt(&encrypted, &EncryptionMethod::Xor, &5);
+
+        assert_eq!("msg", decrypted);
+    }
+
+    #[test]
+    fn encrypt_decrypt_cezar_test() {
+        let encrypted = encrypt(&String::from("msg"), &EncryptionMethod::Cezar, &5);
+        let decrypted = decrypt(&encrypted, &EncryptionMethod::Cezar, &5);
+
+        assert_eq!("msg", decrypted);
     }
 }

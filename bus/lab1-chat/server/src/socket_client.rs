@@ -57,12 +57,14 @@ impl SocketClient {
 
     pub fn handle_event(&mut self, _event_loop: &mut EventLoop<SocketServer>, events: EventSet) {
         if events.is_writable() && !self.messages_to_send.is_empty() {
+            println!("### 1");
             self.messages_to_send
                 .pop_front()
                 .unwrap()
                 .send(&mut self.socket)
                 .unwrap();
-
+            println!("### 2");
+            println!("{:?}", self.state);
             match self.state {
                 ClientState::ParamReqSent => {
                     info!("Params sent to client {:?}", self.token);
@@ -83,8 +85,10 @@ impl SocketClient {
                 }
                 ClientState::Connected => {
                     if self.messages_to_send.is_empty() {
+                        println!("### 3");
                         self.reregister(EventSet::readable());
                     } else {
+                        println!("### 4");
                         self.reregister(EventSet::writable());
                     }
                 }
@@ -261,9 +265,94 @@ fn validate_param_req(json: &json::JsonValue) -> bool {
 
 fn is_valid_encryption_method(json: &json::JsonValue) -> bool {
     debug!("is encryption method {}", json["encryption"].to_string());
-    !json["encryption"].is_null()
+    json["encryption"].to_string() == "xor"
+        || json["encryption"].to_string() == "cezar"
+        || json["encryption"].to_string() == "none"
 }
 
 fn is_valid_msg(json: &json::JsonValue) -> bool {
     !json["msg"].is_null() && !json["from"].is_null()
+}
+
+//
+//
+// TESTS
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_param_req_test() {
+        assert_eq!(
+            validate_param_req(&object!{
+                "request" => "keys"
+            }),
+            true
+        );
+        assert_eq!(
+            validate_param_req(&object!{
+                "request" => "key"
+            }),
+            false
+        );
+        assert_eq!(
+            validate_param_req(&object!{
+                "Request" => "keys"
+            }),
+            false
+        );
+    }
+
+    #[test]
+    fn is_valid_encryption_method_test() {
+        assert_eq!(
+            is_valid_encryption_method(&object!{
+                "encryption" => "none"
+            }),
+            true
+        );
+        assert_eq!(
+            is_valid_encryption_method(&object!{
+                "encryption" => "cezar"
+            }),
+            true
+        );
+        assert_eq!(
+            is_valid_encryption_method(&object!{
+                "encryption" => "xor"
+            }),
+            true
+        );
+        assert_eq!(
+            is_valid_encryption_method(&object!{
+                "encryption" => "xxor"
+            }),
+            false
+        );
+    }
+
+    #[test]
+    fn is_valid_msg_test() {
+        assert_eq!(
+            is_valid_msg(&object!{
+                "msg" => "abcd",
+                "from" => "john"
+            }),
+            true
+        );
+        assert_eq!(
+            is_valid_msg(&object!{
+                "msg" => "abcd",
+            }),
+            false
+        );
+        assert_eq!(
+            is_valid_msg(&object!{
+                "from" => "john",
+            }),
+            false
+        );
+    }
 }

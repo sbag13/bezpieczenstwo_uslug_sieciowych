@@ -24,7 +24,7 @@ impl Handler for SocketServer {
         event_loop: &mut EventLoop<SocketServer>,
         (token, event_set): (Token, EventSet),
     ) {
-        debug!("notified for {:?}", token);
+        debug!("notified for {:?} with event set {:?}", token, event_set);
 
         if token == SERVER_TOKEN {
             while let Some(message) = self.messages_to_broadcast.borrow_mut().pop_front() {

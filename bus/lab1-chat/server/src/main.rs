@@ -7,6 +7,7 @@ extern crate env_logger;
 #[macro_use]
 extern crate json;
 extern crate common;
+extern crate num_bigint;
 extern crate primes;
 extern crate rand;
 
@@ -45,7 +46,3 @@ fn main() {
         Err(err) => error!("Err: {}", err),
     }
 }
-
-// TODO
-// two json quickly as one,/*  */ problem
-// tests

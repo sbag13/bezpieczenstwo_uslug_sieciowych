@@ -25,3 +25,21 @@ impl SendParamsMessage {
         SendParamsMessage { p: p, g: g }
     }
 }
+
+//
+//
+// TESTS
+//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_json_test() {
+        assert_eq!(
+            SendParamsMessage::new(3, 4).create_json().dump(),
+            r#"{"p":3,"g":4}"#
+        );
+    }
+}
