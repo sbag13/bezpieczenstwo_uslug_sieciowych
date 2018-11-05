@@ -21,13 +21,17 @@ use mio::{EventLoop, EventSet, PollOpt, Token};
 use std::net::SocketAddr;
 use std::{io, thread};
 
-const ADDRESS: &'static str = "127.0.0.1:12345";
-
 fn main() {
     env_logger::init();
     let term = Term::stdout();
 
     let args = cli_args::get_args();
+
+    let ip_address = args.value_of("address").unwrap_or("127.0.0.1");
+    let port = args.value_of("port").unwrap_or("12345");
+    let full_addr = String::from(ip_address.to_owned() + ":" + port);
+    let address = full_addr.parse::<SocketAddr>().unwrap();
+
     let nickname = String::from(args.value_of("nickname").unwrap_or("anonymous"));
 
     let encryption = match args.value_of("encryption") {
@@ -42,8 +46,6 @@ fn main() {
     };
 
     let mut event_loop = EventLoop::new().unwrap();
-
-    let address = ADDRESS.parse::<SocketAddr>().unwrap();
 
     let mut client_socket = ClientSocket::new(
         TcpStream::connect(&address).unwrap(),

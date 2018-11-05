@@ -14,6 +14,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::rc::Rc;
+use std::{thread, time};
 
 pub struct SocketClient {
     pub token: Token,
@@ -215,6 +216,7 @@ impl SocketClient {
                 "b",
                 server_public_number,
             )));
+        thread::sleep(time::Duration::from_millis(1));
     }
 
     fn read_public(&mut self) -> Result<(), String> {

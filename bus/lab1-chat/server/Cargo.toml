@@ -14,3 +14,4 @@ common = { path = "../common" }
 primes = "0.2"
 rand = "0.5"
 num-bigint = "0.2"
+clap = "2.32"

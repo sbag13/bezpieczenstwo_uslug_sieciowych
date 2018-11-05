@@ -16,6 +16,7 @@ use mio::{TryRead, TryWrite};
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::cast::ToPrimitive;
 use std::io::Read;
+use std::io::Write;
 
 pub trait Message {
     fn send(&self, socket: &mut TcpStream) -> Result<(), String> {
@@ -163,7 +164,10 @@ pub fn send_json_to_socket(socket: &mut TcpStream, json: json::JsonValue) -> Res
     debug!("sending json string: {:?}", json_string);
 
     match socket.try_write(json_string.as_bytes()) {
-        Ok(_) => return Ok(()),
+        Ok(_) => {
+            socket.flush().unwrap();
+            return Ok(())
+        },
         Err(e) => return Err(e.to_string()),
     }
 }
@@ -232,7 +236,7 @@ pub fn read_json_from_socket(socket: &mut TcpStream) -> Result<json::JsonValue, 
 
     match json::parse(&string_buf) {
         Ok(j) => return Ok(j),
-        Err(_) => return Err(String::from("Could not parse data into jason")),
+        Err(_) => return Err(String::from("Could not parse data into json")),
     };
 }
 
