@@ -24,6 +24,7 @@
 \usepackage[polish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
+\usepackage{hyperref}
 
 \begin{document}
 % this is an alternate method of creating a title
@@ -36,98 +37,83 @@
 %\centerline{\Large\bf Lab 1: Security Audit}\par
 %\bigskip
 \author{Szymon Bagiński}
-\title{\textbf{\centerline{Bezpieczeństwo usług sieciowych}} \newline Laboratorium 1: Komunikator z szyfrowaniem}
+\title{\textbf{\centerline{Bezpieczeństwo usług sieciowych}} \newline Laboratorium 2: Hackme}
 \maketitle
 
 \section{Cel zadania}
 
-Celem zadania było przygotowanie komunikatora (czatu) klient-serwer wspierającego bezpieczną wymianę sekretu (przy użyciu protokołu Diffiego-Hellmana). Komunikator musiał wspierać szyfrowanie wiadomości zgodnie z następującym formatem danych opartym o JSON:
+Celem zadania było ukończenie wszystkich poziomów gry Hackme i Hackme 2.0 dostępnych na stronie \url{https://uw-team.org/}.
 
-\begin{center}
-    \begin{tabular}{ | l | c | r |}
-      \hline
-      Stage & A (client) & B (server) \\ \hline
-      1 & \{ “request”: “keys” \} -> & \\ \hline
-      2 &  & <- \{ “p”: 123, “g”: 123 \} \\ \hline
-      3 & \{ “a”: 123 \} -> & <- \{ “b”: 123 \} \\ \hline
-      4 & \{ “encryption”: “none” \} -> &  \\ \hline
-      5 & \{ “msg”: “...”, “from”: “John” \} -> & <- \{ “msg”: “...”, “from”: “Anna” \} \\
-      \hline
-    \end{tabular}
-\end{center}
+\section{Hackme}
 
-\begin{enumerate}
-    \item Po połączeniu do serwera klient prosi o liczby p oraz g.
-    \item Serwer wysyła do klienta liczby p oraz g.
-    \item Serwer i klient wymieniają się publicznymi wartościami A oraz B:
-        \begin{enumerate}
-            \item Klient wysyła do serwera obliczoną wartość A.
-            \item Serwer wysyła do klient obliczoną wartość B.
-        \end{enumerate}
-        Kroki a oraz b mogą nastąpić w dowolnej kolejności.
-    \item *OPCJONALNIE* Klient wysyła do serwera informację o żądanym sposobie szyfrowania wiadomości. Jeżeli klient nie wyśle tej informacji, to strony przyjmują domyślne szyfrowanie ustawione na “none”.
-    \item Klient oraz serwer wymieniają się szyfrowanymi wiadomościami.
-\end{enumerate}
+\subsection{Level 1}
 
-Treść wiadomości powinna być zakodowana za pomocą base64 przed umieszczeniem jej w strukturze JSON.
-\newpage
-Wspierane metody szyfrowania:
-\begin{itemize}
-    \item none - brak szyfrowania (domyślne)
-    \item xor - szyfrowanie xor jedno-bajtowe (należy użyć najmłodszego bajtu sekretu)
-    \item cezar - szyfr cezara
-\end{itemize}
+W tym zadaniu należało odnaleźć funkcję \texttt{sprawdz()} w skrypcie znajdującym się na końcu żródła strony. w tej funkcji wartość pola z hasłem była porównywana do tekstu ``a jednak umiem czytac'', który trzeba wpisać w pole, żeby ukończyć poziom.
 
+\subsection{Level 2}
 
-\section{Wykonanie zadania}
+W nagłówku strony widać, że dołączany jest skrypt z pliku \texttt{haselko.js}. Znajdujemy w nim zmienną has z wartością ``to bylo za proste'', którą należy wpisać jako hasło.
 
-\subsection{Technologia}
+\subsection{Level 3}
 
-Do wykonania zadania postanowiono skorzystać z języka programowania \textbf{Rust}. Jest to stosunkowo nowy język ukierunkowany na bezpieczeństwo oraz wysoką wydajność tworzonych programów. Zadanie potraktowano jako pewnego rodzaju eksperyment z tym językiem, żeby się z nim zapoznać.
+Podane hasło w tym zadaniu jest porównywane do wartości zmiennej \texttt{ost}. Po przeanalizowaniu źródła strony widać, że są do niej przypisywane litery o indeksach 2 i 3 ze słowa ``abcdefgh'' (czyli ``cd''). Dalej dopisywany jest napis ``qwe'', a na końcu 3 ostatnie litery słowa ``unknow''. Pełne hasło zatem brzmi ``cdqwenow''.
 
-Aby działać poprawnie, komunikator musi wysyłać i odbierać dane przez gniazda sieciowe.
-Może się wydawać, że jest to proste zadanie, ale istnieje kilka sposobów o różnej złożoności, efektywnej obsługi operacji wejścia i wyjścia. Główna różnica między podejściami polega na traktowaniu blokowania: domyślnie zapobiega się wszelkim operacjom CPU, podczas gdy czekamy, aż dane dotrą do gniazda sieciowego. Ponieważ nie możemy pozwolić jednemu użytkownikowi naszej usługi czatu blokować innych, musimy jakoś je wyizolować.
+\subsection{Level 4}
 
-Najczęstszym sposobem jest utworzenie oddzielnego wątku dla każdego użytkownika, tak aby blokowanie zadziałało tylko w kontekście pojedynczego wątku. Ale chociaż koncepcja jest prosta i taki kod jest łatwy do napisania, każdy wątek wymaga pamięci dla swojego stosu i ma narzut przełączników kontekstu - nowoczesne procesory serwera mają zwykle około 8 lub 16 rdzeni, a pojawianie się wielu wątków wymaga od jądra systemu operacyjnego ciężkiej pracy, aby przełączać między nimi wykonanie z odpowiednią prędkością. Z tego powodu trudno jest skalować wielowątkowość do wielu połączeń.
+W źródle strony widzimy, że hasłem jest wartość wyrażenia \newline \texttt{Math.round(6\%2)*(258456/2)+(300\/4)*2\/3+121}. \newline Nie musimy liczyć tego w pamięci. Można wyrażenie wkleić w konsoli przeglądarki i otrzymamy wynik: 171.
 
-Zamiast tego użyjemy wydajnych interfejsów systemu, które wykorzystują pętlę zdarzeń (event loop). Działają one w prosty sposób: bajty przychodzą przez sieć, docierają do gniazd, a zamiast czekać, kiedy dane staną się dostępne dla odczytu, mówimy gniazdu, aby nas powiadomić o nadejściu nowych danych.
+\subsection{Level 5}
 
-Powiadomienia przychodzą w formie zdarzeń, które są obsługiwane przez pętle zdarzeń [Rysunek \ref{fig:model}]. I tu właśnie dzieje się blokowanie: zamiast okresowych kontroli tysięcy gniazd, czekamy tylko na pojawienie się nowych zdarzeń. To ważne różnica, ponieważ szczególnie w aplikacjach sieciowych bardzo często zdarza się, że wielu bezczynnych klientów czeka na jakąś aktywność. Dzięki asynchronicznym operacjom wejścia / wyjścia będziemy mieli bardzo niewiele narzutów na uchwytach gniazda.
+W tym zadaniu należy sprawić aby zmienna ile, która jest obliczana według wyrażenia \newline \texttt{((seconds*(seconds-1))\/2)*(document.getElementById(\'pomoc\').value\%2)} \newline miała wartość 861 podczas sprawdzania hasła. Z tego wyrażenia wynika, że wartość pomocnicza jest dzielona modulo 2, więc możemy wywnioskować, że na pewno będzie to liczba nieparzysta, tak aby całe wyrażenie się nie wyzerowało. Dalej możemy wywnioskować, że wartość zmiennej \texttt{seconds} pomnożona przez liczbę o jeden od siebie mniejszą, a następnie podzielona przez 2 ma być równa 861. Po rozwiązaniu takiego prostego równania otrzymujemy wartość 42. Teraz wystarczy poczekać, aż licznik sekund przyjmię tę wartość i wcisnąć przycisk.
 
-Aby zaimplementować opisane podejście skorzystano z biblioteki mio (Metal IO), która kładzie nacisk na jak najmniejsze obciążenie. Dzięki niej powstała maszyna stanów obsługująca każde połączenie z klientem.
+\subsection{Level 6}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.35\textwidth]{io-multiplex.png}
-    \caption{Schemat modelu opartego o zdarzenia}
-    \label{fig:model}
-\end{figure}
+W tym zadaniu należy przeanalizować pętlę i wywnioskować wartość zmiennej \texttt{hsx} podczas sprawdzania hasła na końcu funkcji sprawdz. Pętla wykona się 3 razy, a zmienna \texttt{i} będzie miało wartości: 1, 3 oraz 5. Następnie widzimy, że \texttt{licznik} na początku każego wykonania pętli jest inkrementowany, więc dalej będzie miał wartości 1, 2 i 3. Na końcu pętli dodajemy literę o indeksie równym wartości zmiennej \texttt{i} z napisu ``abcdqepolsrc'' czyli w kolejnych iteracjach będą to: b, d oraz e. W każdej iteracji dodajemy także znak ``\_'' jeśli \texttt{licznik} jest parzysty, oraz ``x'' jeśli tak nie jest. W kolejnych wykonaniach pętli zostaną dodane zatem ``bx'', ``d\_'' oraz ``ex''. Po wykonaniu pętli duplikowane są trzy ostatnie litery wartości, która już jest w zmiennej \texttt{hsx}, więc otrzymane hasło to ``bxd\_ex\_ex''.
 
-\subsection{Generowanie parametrów protokołu Diffiego-Hellmana}
+\subsection{Level 7}
 
-W programie server zaimplementowano dynamiczne generowanie parametrów wysyłanych do każdego klienta, na podstawie których potem oblicza się numery publiczne oraz sekret. 
+W tym zadaniu musimy umieścić w zmiennej \texttt{wyn} napis ``plxszn\_xrv''. Po przeanalizowaniu funkcji \texttt{sprawdz} widzimy, że każda litera, którą podamy jest zastępowana według wielu konstrukcji \texttt{if}, które się tam znajdują. Mapując litery odwrotnie można wywnioskować, że hasłem jest ``kocham cie''.
 
-W pod module serwera \texttt{parameters.rs} znajduje się funkcja \texttt{generate\_parameters}, która tworzy nowy zestaw parametrów. W tym celu najpierw wybierana jest losowa liczba pierwsza \textit{p}. W tym przypadku jest to liczba pierwsza z zakresu <9001, 10007>. Drugi parametr \textit{g} jest wybierany losowo spośród wszystkich pierwiastków pierwotnych modulo \textit{p}. Z uwagi na fakt, że znajdowanie pierwiastków pierwotnych jest stosunkowo czasochłonną operacją zdecydowano się na niewielkie liczby. Implementacja rozwiązania pozwala jednak na szybką zmianę możliwych wartości parametrów. 
+\subsection{Level 8}
 
-\subsection{Ważne funkcjonalności systemu}
+W tym zadaniu dołączone są skrypty, których nazwa jest zapisana w systemie szesnastkowym. Nie musimy jednak ich konwertować na tekst. Wystarczy wkleić wartość w pasku adresu, a przeglądarka przekieruje nas do skryptu. Po otworzeniu tych plików okazuje się, że jeden z nich nazywa się ``passwd.js''. Jest to niestety tylko podły żart i nie ma w nim hasła. W drugim skrypcie, nazwanym ``zsedcx.js'' znajdziemy zdefiniowane pewne zmienne, które posłużą do odgadnięcia hasła. Teraz znowu możemy posłużyć się konsolą przeglądarki zamiast liczyć ręcznie jakie powinno być hasło. Kopiując wszystkie potrzebne zmienne ze skryptu oraz ze źródła strony, a także operacje, które są odpowiedzialne za obliczenie hasła otrzymujemy wartość ``qrupjf162''.
 
-\begin{itemize}
-    \item Serwer wspiera wielu klientów
-    \item Kolejność wymiany wartości A i B jest dowolna
-    \item Parametry protokołu Diffiego-Hellmana są generowane dynamicznie
-    \item Parametry protokołu Diffiego-Hellmana są różne dla każdego klienta
-    \item Z punktu widzenia serwera wiadomość o szyfrowaniu jest opcjonalna, natomiast klient zawsze ją wysyła nawet gdy nie jest ona ustawiona
-    \item Serwer, w trakcie połączenia z klientem, zmieni sposób szyfrowania jeśli otrzyma odpowiednie rządanie. Jednak program klienta nie udostępnia sposobu wysłania ponownego żądania ustawienia szyfrowania. 
-\end{itemize}
+\section{Hackme 2.0}
 
-\subsection{Korzystanie}
+\subsection{Level 1}
 
-Aby korzystać z komunikatora należy najpierw uruchomić program \textbf{server}, a następnie dowolną ilość programów \textbf{client}, które posiadają tylko interfejs konsolowy (sposób uruchomienia został opisany w pliku README). Każda wpisana linia jest interpretowana jako nowa wiadomość i rozsyłana do pozostałych użytkowników. Równolegle są pokazywane wiadomości od innych użytkowników połączonych z tym samym serwerem. Wiadomości te nie są jednak przechowywane na serwerze, więc klient podłączony po przyjściu danego komunikatu nie będzie w stanie go otrzymać.
+W tym zadaniu hasłem była wartość ukrytego formularza (``text''), którą można zobaczyć w źródle strony.
 
-\section{Podsumowanie}
+\subsection{Level 2}
 
-Wykonanie zadania zajęło dużo więcej czasu niż założono na początku. Spowodowane było to przede wszystkim nieznajomością technologii oraz wyborem bibliotek. Nie mają one w znacznej większości stabilnej wersji, a ich interfejs się znacząca różni między wersjami. Jest to zrozumiałe, ponieważ otoczenie języka \textbf{Rust} jest relatywnie młode i się dynamicznie rozwija. Materiały edukacyjne i różnego rodzaju tutoriale nie są w sieci mocno rozpowszechnione w porównaniu do innych technologii, a dokumentacja często pozostawia wiele do życzenia.
+Aby rozwiązać ten poziom trzeba zgadnąć co kryje się za wyrażeniem \texttt{unescape('\%62\%61\%6E\%61\%6C\%6E\%65')}, które jest widoczne w źródle. Tak jak w poprzednich przypadkach można wykorzystać konsolę przeglądarki aby dowiedzieć się, że hasłem jest słowo ``banalne''.
 
-Niemniej jednak założenia zadania udało się wypełnić w zdecydowanej większości, przy okazji zdobywając nową wiedzę i doświadczenia z \textbf{Rust}-em. Specyficzna składnia tego języka oraz pewien rygor programowania w nim pozwala uniknąć wielu błędów podczas programowania, co w przypadku komunikacji sieciowej jest istotne. Język ten staje się także po pewnym czasie, gdy zrozumie się podstawowe koncepty takie jak zarządzanie pamięcią, wygodny i intuicyjny.
+\subsection{Level 3}
+
+Hasłem w tym poziomie jest liczba, która w zapisie binarnym jest reprezentowana przez \texttt{10011010010}. Jest to liczba 1234.
+
+\subsection{Level 4}
+
+Tym razem funkcja sprawdzająca hasło znajdowała się na dole źródła strony i była oddzielona wieloma pustymi liniami, więc osoba nieuważna mogłaby ją przeoczyć. W tej funkcji wartość wyrażenia \texttt{parseInt(unescape('\%32\%35\%38'))} jest parsowana do postaci szesnastkowej. Znowy wykorzystujemy konsolę przeglądarki i otrzymujemy wartość 102.  
+
+\subsection{Level 5}
+
+Aby przejść do następnego poziomu zmienne \texttt{has} oraz \texttt{log} muszą mieć wartość 1. Można je przekazać w adresie strony, ponieważ w skrypcie php nie została wyłączona opcja \newline \texttt{register\_clobals}, która powoduje, że wartości przekazane przez metody POST lub GET będą dostępne w skrypcie pod nazwą pola wejściowego. W pasku adresu należy zatem dodać napis ``?has=1\&log=1'', a następnie odświeżyć stronę.
+
+\subsection{Level 6}
+
+Podpowiedź mówi nam, że rozwiązanie tego poziomu znajdziemy w przychodzącym "ciasteczku". Jest tam zapisana nazwa pliku z następnym poziomem, czyli ``ciastka.htm''. Podmieniamy ją w pasku adresu i przechodzimy do następnego poziomu.
+
+\subsection{Level 7}
+
+W źródle strony widzimy, że hasło jest wykorzystane do załadowania skryptu, który zawiera je w swojej nazwie. Znajduje się on w katalogu \texttt{include}. Dzięki funkcji serwera \textbf{apache} możemy wylistować pliki znajdujące się w tym folderze. Znajduje się tam plik \texttt{cosik.js}, którego nazwa pozbawiona rozszerzenia jest hasłem.
+
+\subsection{Level 8}
+
+Aby ominąć zabezpieczenie w postaci wyskakującego powiadomienia, można po prostu wyłączyć \texttt{javascript} w przeglądarce. Hasło jest napisane pojedynczymi znakami na czarno, więc nie widać go na stronie, ale można je odczytać ze źródła. Hasłem jest ``kxnxgxnxa''. Gdy zostanie ono wpisane pojawi się wiadomość z nazwą pliku z następnym etapem.
+
+\subsection{Level 9}
+
+W tym poziomie pokazuje się powiadomienie, że dostępm możliwy jest tylko po godzinie pierwszej w nocy. Nie musimy jednak zwracać na to uwagi, ponieważ możemy podejrzeć źródło strony, bądź wyłączyć znowu obsługę javascriptu. Znajdujemy wiadomość zaszyfrowaną szyfrem przesuwnym rot13, która po rozszyfrowaniu brzmi ``ponizszy adres zostal zakodowany z przesunieciem o 2''. Adres nie prowadzi jednak do niczego przydatnego. Próbujemy więc odkodować tablicę bajtów jako tekst i w efekcie otrzymujemy wiadomość: \newline ``Gratuluje :) Udalo ci sie rozkodowac ten etapik :] Nie bylo to specjalnie trude... Wystarczylo zrobic sobie program konwertujacy, lub wejsc na www.google.pl i wpisac "text to binary". To byl juz ostatni etap tej gry. Aby byc wpisanym na liste zwyciezcow przeslij haslo "bezkvu6r" na adres unkn0w@wp.pl''.
 
 \end{document}

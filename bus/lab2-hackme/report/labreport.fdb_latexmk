@@ -1,8 +1,9 @@
 # Fdb version 3
-["pdflatex"] 1542328719 "/home/sbag/Desktop/208242/bus/lab2-hackme/report/labreport.tex" "labreport.pdf" "labreport" 1542328719
-  "/home/sbag/Desktop/208242/bus/lab2-hackme/report/labreport.tex" 1542328719 5626 392dcbc4b5841ef4a13d90dd8041d49d ""
+["pdflatex"] 1542400705 "/home/sbag/Desktop/208242/bus/lab2-hackme/report/labreport.tex" "labreport.pdf" "labreport" 1542400706
+  "/home/sbag/Desktop/208242/bus/lab2-hackme/report/labreport.tex" 1542400705 8861 69875ef8c71d7a684f129ec8666dd270 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1536122179 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1536122179 3332 103109f5612ad95229751940c61aada0 ""
+  "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1095.tfm" 1536122179 3584 21b378cca2e40816b0e6d74a4dc98f04 ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1200.tfm" 1536122179 3584 402da0b29eafbad07963b1224b222f18 ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1440.tfm" 1536122179 3584 13049b61b922a28b158a38aeff75ee9b ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1728.tfm" 1536122179 3584 ad49a18d8515beef6d92d4d3f197d0fd ""
@@ -22,6 +23,7 @@
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmsy10.tfm" 1536122179 1124 6c73e740cf17375f03eec0ee63599741 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmsy6.tfm" 1536122179 1116 933a60c408fc0a863a92debe84b2d294 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmsy8.tfm" 1536122179 1120 8b7d695260f3cff42e636090a8002094 ""
+  "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx1095.pfb" 1536122179 154600 ea54091d31de803b613ba9e80ca51709 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx1200.pfb" 1536122179 140176 d4962f948b4cc0adf4d3dde77a128c95 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx1440.pfb" 1536122179 135942 859a90cad7494a1e79c94baf546d7de5 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx1728.pfb" 1536122179 139826 9213617a7cb78635fc326b859c0b2273 ""
@@ -70,11 +72,11 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1536122179 33301 a3134070eacafb10b1f371612ce2650d ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1541709427 2752791 f81cd82d58365574657dd144b7938fc0 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1531257094 7906416 8f4d10d907a28aa0b96ab74dc0a9e56a ""
-  "labreport.aux" 1542328719 2299 6cbafa414934a3299c4584351cda25c8 ""
-  "labreport.out" 1542328719 981 a9f9cceb8df694092efbb695cf297c0a ""
-  "labreport.tex" 1542328719 5626 392dcbc4b5841ef4a13d90dd8041d49d ""
+  "labreport.aux" 1542400706 2479 015dcf7f9e2b54951a1f8dd31d94c40d ""
+  "labreport.out" 1542400706 1095 001db9132f53d7bb96de6a201fea3a5f ""
+  "labreport.tex" 1542400705 8861 69875ef8c71d7a684f129ec8666dd270 ""
   (generated)
   "labreport.out"
   "labreport.log"
-  "labreport.pdf"
   "labreport.aux"
+  "labreport.pdf"

@@ -48,7 +48,7 @@ Celem zadania było ukończenie wszystkich poziomów gry Hackme i Hackme 2.0 dos
 
 \subsection{Level 1}
 
-W tym zadaniu należało odnaleźć funkcję \texttt{sprawdz()} w skrypcie znajdującym się na końcu żródła strony. w tej funkcji wartość pola z hasłem była porównywana do tekstu ``a jednak umiem czytac'', który trzeba wpisać w pole, żeby ukończyć poziom.
+W tym zadaniu należało odnaleźć funkcję \texttt{sprawdz()} w skrypcie znajdującym się na końcu źródła strony. w tej funkcji wartość pola z hasłem była porównywana do tekstu ``a jednak umiem czytac'', który trzeba wpisać w pole, żeby ukończyć poziom.
 
 \subsection{Level 2}
 
@@ -64,11 +64,11 @@ W źródle strony widzimy, że hasłem jest wartość wyrażenia \newline \textt
 
 \subsection{Level 5}
 
-W tym zadaniu należy sprawić aby zmienna ile, która jest obliczana według wyrażenia \newline \texttt{((seconds*(seconds-1))\/2)*(document.getElementById(\'pomoc\').value\%2)} \newline miała wartość 861 podczas sprawdzania hasła. Z tego wyrażenia wynika, że wartość pomocnicza jest dzielona modulo 2, więc możemy wywnioskować, że na pewno będzie to liczba nieparzysta, tak aby całe wyrażenie się nie wyzerowało. Dalej możemy wywnioskować, że wartość zmiennej \texttt{seconds} pomnożona przez liczbę o jeden od siebie mniejszą, a następnie podzielona przez 2 ma być równa 861. Po rozwiązaniu takiego prostego równania otrzymujemy wartość 42. Teraz wystarczy poczekać, aż licznik sekund przyjmię tę wartość i wcisnąć przycisk.
+W tym zadaniu należy sprawić aby zmienna ile, która jest obliczana według wyrażenia \newline \texttt{((seconds*(seconds-1))\/2)*(document.getElementById(\'pomoc\').value\%2)} \newline miała wartość 861 podczas sprawdzania hasła. Z tego wyrażenia wynika, że wartość pomocnicza jest dzielona modulo 2, więc możemy wywnioskować, że na pewno będzie to liczba nieparzysta, tak aby całe wyrażenie się nie wyzerowało. Dalej możemy wywnioskować, że wartość zmiennej \texttt{seconds} pomnożona przez liczbę o jeden od siebie mniejszą, a następnie podzielona przez 2 ma być równa 861. Po rozwiązaniu takiego prostego równania otrzymujemy wartość 42. Teraz wystarczy poczekać, aż licznik sekund przyjmie tę wartość i wcisnąć przycisk.
 
 \subsection{Level 6}
 
-W tym zadaniu należy przeanalizować pętlę i wywnioskować wartość zmiennej \texttt{hsx} podczas sprawdzania hasła na końcu funkcji sprawdz. Pętla wykona się 3 razy, a zmienna \texttt{i} będzie miało wartości: 1, 3 oraz 5. Następnie widzimy, że \texttt{licznik} na początku każego wykonania pętli jest inkrementowany, więc dalej będzie miał wartości 1, 2 i 3. Na końcu pętli dodajemy literę o indeksie równym wartości zmiennej \texttt{i} z napisu ``abcdqepolsrc'' czyli w kolejnych iteracjach będą to: b, d oraz e. W każdej iteracji dodajemy także znak ``\_'' jeśli \texttt{licznik} jest parzysty, oraz ``x'' jeśli tak nie jest. W kolejnych wykonaniach pętli zostaną dodane zatem ``bx'', ``d\_'' oraz ``ex''. Po wykonaniu pętli duplikowane są trzy ostatnie litery wartości, która już jest w zmiennej \texttt{hsx}, więc otrzymane hasło to ``bxd\_ex\_ex''.
+W tym zadaniu należy przeanalizować pętlę i wywnioskować wartość zmiennej \texttt{hsx} podczas sprawdzania hasła na końcu funkcji sprawdz. Pętla wykona się 3 razy, a zmienna \texttt{i} będzie miało wartości: 1, 3 oraz 5. Następnie widzimy, że \texttt{licznik} na początku każdego wykonania pętli jest inkrementowany, więc dalej będzie miał wartości 1, 2 i 3. Na końcu pętli dodajemy literę o indeksie równym wartości zmiennej \texttt{i} z napisu ``abcdqepolsrc'' czyli w kolejnych iteracjach będą to: b, d oraz e. W każdej iteracji dodajemy także znak ``\_'' jeśli \texttt{licznik} jest parzysty, oraz ``x'' jeśli tak nie jest. W kolejnych wykonaniach pętli zostaną dodane zatem ``bx'', ``d\_'' oraz ``ex''. Po wykonaniu pętli duplikowane są trzy ostatnie litery wartości, która już jest w zmiennej \texttt{hsx}, więc otrzymane hasło to ``bxd\_ex\_ex''.
 
 \subsection{Level 7}
 
@@ -82,16 +82,38 @@ W tym zadaniu dołączone są skrypty, których nazwa jest zapisana w systemie s
 
 \subsection{Level 1}
 
+W tym zadaniu hasłem była wartość ukrytego formularza (``text''), którą można zobaczyć w źródle strony.
+
 \subsection{Level 2}
+
+Aby rozwiązać ten poziom trzeba zgadnąć co kryje się za wyrażeniem \texttt{unescape('\%62\%61\%6E\%61\%6C\%6E\%65')}, które jest widoczne w źródle. Tak jak w poprzednich przypadkach można wykorzystać konsolę przeglądarki aby dowiedzieć się, że hasłem jest słowo ``banalne''.
 
 \subsection{Level 3}
 
+Hasłem w tym poziomie jest liczba, która w zapisie binarnym jest reprezentowana przez \texttt{10011010010}. Jest to liczba 1234.
+
 \subsection{Level 4}
+
+Tym razem funkcja sprawdzająca hasło znajdowała się na dole źródła strony i była oddzielona wieloma pustymi liniami, więc osoba nieuważna mogłaby ją przeoczyć. W tej funkcji wartość wyrażenia \texttt{parseInt(unescape('\%32\%35\%38'))} jest parsowana do postaci szesnastkowej. Znowu wykorzystujemy konsolę przeglądarki i otrzymujemy wartość 102.  
 
 \subsection{Level 5}
 
+Aby przejść do następnego poziomu zmienne \texttt{has} oraz \texttt{log} muszą mieć wartość 1. Można je przekazać w adresie strony, ponieważ w skrypcie php nie została wyłączona opcja \newline \texttt{register\_globals}, która powoduje, że wartości przekazane przez metody POST lub GET będą dostępne w skrypcie pod nazwą pola wejściowego. W pasku adresu należy zatem dodać napis ``?has=1\&log=1'', a następnie odświeżyć stronę.
+
 \subsection{Level 6}
 
+Podpowiedź mówi nam, że rozwiązanie tego poziomu znajdziemy w przychodzącym "ciasteczku". Jest tam zapisana nazwa pliku z następnym poziomem, czyli ``ciastka.htm''. Podmieniamy ją w pasku adresu i przechodzimy do następnego poziomu.
+
 \subsection{Level 7}
+
+W źródle strony widzimy, że hasło jest wykorzystane do załadowania skryptu, który zawiera je w swojej nazwie. Znajduje się on w katalogu \texttt{include}. Dzięki funkcji serwera \textbf{apache} możemy wylistować pliki znajdujące się w tym folderze. Znajduje się tam plik \texttt{cosik.js}, którego nazwa pozbawiona rozszerzenia jest hasłem.
+
+\subsection{Level 8}
+
+Aby ominąć zabezpieczenie w postaci wyskakującego powiadomienia, można po prostu wyłączyć \texttt{javascript} w przeglądarce. Hasło jest napisane pojedynczymi znakami na czarno, więc nie widać go na stronie, ale można je odczytać ze źródła. Hasłem jest ``kxnxgxnxa''. Gdy zostanie ono wpisane pojawi się wiadomość z nazwą pliku z następnym etapem.
+
+\subsection{Level 9}
+
+W tym poziomie pokazuje się powiadomienie, że dostęp możliwy jest tylko po godzinie pierwszej w nocy. Nie musimy jednak zwracać na to uwagi, ponieważ możemy podejrzeć źródło strony, bądź wyłączyć znowu obsługę javascriptu. Znajdujemy wiadomość zaszyfrowaną szyfrem przesuwnym rot13, która po rozszyfrowaniu brzmi ``ponizszy adres zostal zakodowany z przesunieciem o 2''. Adres nie prowadzi jednak do niczego przydatnego. Próbujemy więc odkodować tablicę bajtów jako tekst i w efekcie otrzymujemy wiadomość: \newline ``Gratuluje :) Udalo ci sie rozkodowac ten etapik :] Nie bylo to specjalnie trude... Wystarczylo zrobic sobie program konwertujacy, lub wejsc na www.google.pl i wpisac "text to binary". To byl juz ostatni etap tej gry. Aby byc wpisanym na liste zwyciezcow przeslij haslo "bezkvu6r" na adres unkn0w@wp.pl''.
 
 \end{document}
