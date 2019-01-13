@@ -1,0 +1,14 @@
+[package]
+name = "common"
+version = "0.1.0"
+authors = ["sbaginsk <szymon.baginski@gmail.com>"]
+
+[dependencies]
+mio = "0.5"
+json = "0.11"
+bytes = "0.3"
+log = "0.4"
+rand = "0.5"
+byteorder = "1.2"
+num-bigint = "0.2"
+num-traits = "0.2"
